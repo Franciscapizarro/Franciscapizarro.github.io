@@ -1,0 +1,204 @@
+---
+layout: default
+title: Control robustness
+subtitle: PCE-aware feedback vs nominal-model feedback — including where it does not help
+permalink: /PIDE-UQ/control/
+---
+
+<p class="lead">
+The poster claims that closing the loop on the PCE ensemble mean removes
+nominal-model bias and lowers worst-case error. This page gives the experiment, the
+numbers behind that claim, and the two places where the advantage is small or absent.
+</p>
+
+<h2>The question and the design</h2>
+
+<p>
+Is a PCE-aware controller more robust than a nominal-model-feedback controller for
+PDF-shape tracking, under \(\gamma_x \sim \mathcal{U}[\rho_{\min}, \rho_{\max}]\)?
+</p>
+
+<p>
+Both controllers share the <em>same</em> structure and the same gains. They differ in
+one thing only — what they look at:
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>The only difference between the two controllers is the feedback source.</caption>
+  <thead>
+    <tr><th>Controller</th><th>Feedback signal</th><th>Blind to uncertainty?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>PCE-aware</td><td>PCE ensemble mean \(a_0(x) = \mathbb{E}[p]\)</td><td>No</td></tr>
+    <tr><td>Nominal</td><td>Deterministic model at \(\gamma_x = c_1\) (midpoint)</td><td>Yes</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+Each controller produces an inducer trajectory \(I(t)\), which is then deployed on the
+<em>true uncertain ensemble</em>. Per-realisation terminal PDFs \(p(x;\gamma_x)\) are
+reconstructed from the ensemble PCE coefficients over sampled \(\gamma_x\) and compared
+to the target \(p^*(x)\).
+</p>
+
+<div class="note">
+<strong>Deployment is live, not replayed.</strong> The error signal
+\(\mathrm{sign}(\text{mean gap})\cdot\|p^*-p\|\) chatters near steady state: the sign flips
+every step while the magnitude floors at the residual shape mismatch. Replaying a
+coarsely sampled chattering trajectory aliases it — matching required roughly 9000
+samples in testing. Instead the nominal feedback model is integrated in lock-step
+with the ensemble and the same \(I\) is applied to both.
+</div>
+
+<h2>Headline result at ±20%</h2>
+
+<div class="tablewrap">
+<table>
+  <caption>
+    Terminal metrics at ±20% uncertainty, target \(x^*=100\). Bold marks the better
+    value. Hellinger and total variation are distances between the reconstructed and
+    target PDFs.
+  </caption>
+  <thead>
+    <tr><th>Metric</th><th>PCE-aware</th><th>Nominal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Ensemble-mean location \(\mathbb{E}[\langle x\rangle]\)</td><td class="win">99.958</td><td>100.634</td></tr>
+    <tr><td>Location bias \(|\mathbb{E}[\langle x\rangle]-x^*|\)</td><td class="win">0.042</td><td>0.634</td></tr>
+    <tr><td>Worst-case \(|\langle x\rangle - x^*|\)</td><td class="win">17.55</td><td>18.24</td></tr>
+    <tr><td>Worst-case Hellinger</td><td class="win">0.2116</td><td>0.2158</td></tr>
+    <tr><td>Worst-case total variation</td><td>0.2493</td><td class="win">0.2430</td></tr>
+    <tr><td>Ensemble-mean Hellinger</td><td>0.1277</td><td>0.1272</td></tr>
+    <tr><td>Ensemble-mean total variation</td><td>0.1410</td><td class="win">0.1388</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+The bias is reduced by roughly a factor of 15. The aggregate ensemble-mean distances
+are effectively tied — and on total variation the nominal controller is marginally
+ahead. That is not noise, and the explanation is in the limitations below.
+</p>
+
+<h2>The margin grows with uncertainty</h2>
+
+<p>
+Nominal bias grows roughly quadratically, because the Jensen gap scales with
+\(\mathrm{Var}(\gamma_x)\), which scales with the square of the spread. PCE bias stays
+near zero across the whole range.
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>
+    Mode B (inducer-only actuator). Uncertainty sweep, verified NumPy reference at
+    \(N=201\). "worst" is \(\max\) over realisations of \(|\langle x\rangle - x^*|\).
+  </caption>
+  <thead>
+    <tr><th>± uncertainty</th><th>bias PCE</th><th>bias nominal</th><th>worst PCE</th><th>worst nominal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>10%</td><td class="win">0.051</td><td>0.128</td><td class="win">8.40</td><td>8.58</td></tr>
+    <tr><td>20%</td><td class="win">0.052</td><td>0.614</td><td class="win">17.57</td><td>18.24</td></tr>
+    <tr><td>30%</td><td class="win">0.069</td><td>1.416</td><td class="win">27.45</td><td>28.91</td></tr>
+    <tr><td>40%</td><td class="win">0.052</td><td>2.538</td><td class="win">38.02</td><td>40.40</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure>
+  <img src="{{ '/assets/img/robustness_summary.png' | relative_url }}"
+       alt="Robustness summary: PCE-aware versus nominal controller across uncertainty levels">
+  <figcaption>Mode B robustness summary across the uncertainty sweep.</figcaption>
+</figure>
+
+<figure>
+  <img src="{{ '/assets/img/jensen_summary.png' | relative_url }}"
+       alt="Jensen gap check: nominal-model bias against variance of the uncertain parameter">
+  <figcaption>
+    The Jensen-gap check: the nominal controller's bias tracks \(\mathrm{Var}(\gamma_x)\),
+    which is the mechanism behind the quadratic growth in the table above.
+  </figcaption>
+</figure>
+
+<h2>Two honest limitations</h2>
+
+<h3>1. One scalar actuator cannot narrow the ensemble</h3>
+
+<p>
+The ensemble mean of a set of distributions is a mixture, and a mixture is always
+wider than any single member. A single global inducer shifts the whole family; it
+cannot compress it. So the PCE controller's advantage shows up in <em>bias</em> and
+<em>worst case</em>, not in the aggregate ensemble-mean PDF distance — which is
+dominated by that irreducible width floor and is therefore roughly tied at ±20%.
+This is a limitation of one scalar actuator, not of the method.
+</p>
+
+<h3>2. The autoregulation actuator (Mode A) is poorly conditioned</h3>
+
+<p>
+Mode A modulates the protein's own Hill self-regulation through \(K_{\text{eff}}(I)\)
+rather than acting as a pure inducer. Two problems appear.
+</p>
+
+<p>
+<strong>Authority is regime-dependent.</strong> With the original parameters
+(\(K=45\), \(H=-4\)) the inducer barely moves the distribution: the mean is confined to
+roughly \([136,139]\), while \(\gamma_x\) alone swings it from 125 to 153. The Hill term
+is saturated (\(c\approx1\)) across the entire inducer range, so the control problem is
+nearly degenerate. Raising \(K\) with the inducer <em>inverts</em> the plant gain
+(\(I\uparrow \Rightarrow\) mean \(\downarrow\)), fighting the controller's sign convention. To
+recover authority with the correct sign the threshold has to sweep the protein range —
+\(K=150\), \(H=-4\) gives a reachable mean over roughly \([38,139]\).
+</p>
+
+<p>
+<strong>Even with authority it is stiff.</strong> The mean is hypersensitive to \(\gamma_x\) at
+the operating point, so the deployed ensemble is bimodal and very wide, the closed
+loop does not fully settle (\(\mathbb{E}[x]\) drifts to about 102 rather than 100), and
+one global inducer cannot shape it.
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>Mode A (autoregulation actuator), retuned to \(K=150\), \(H=-4\).</caption>
+  <thead>
+    <tr><th>± uncertainty</th><th>bias PCE</th><th>bias nominal</th><th>worst PCE</th><th>worst nominal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>10%</td><td class="win">0.780</td><td>0.941</td><td class="win">21.97</td><td>22.11</td></tr>
+    <tr><td>20%</td><td class="win">1.265</td><td>1.731</td><td class="win">40.48</td><td>40.77</td></tr>
+    <tr><td>30%</td><td class="win">2.139</td><td>2.778</td><td class="win">53.76</td><td>54.02</td></tr>
+    <tr><td>40%</td><td class="win">3.530</td><td>4.103</td><td class="win">62.40</td><td>62.61</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure>
+  <img src="{{ '/assets/img/robustness_modeA.png' | relative_url }}"
+       alt="Mode A robustness: wide, bimodal deployed ensemble with a small margin between controllers">
+  <figcaption>Mode A. The direction is the same; the margin is much smaller and neither controller tracks cleanly.</figcaption>
+</figure>
+
+<h2>Bottom line</h2>
+
+<p>
+The PCE-aware controller beats the nominal one in both modes — lower bias at every
+uncertainty level, with the gap widening as uncertainty grows. But Mode B
+(inducer-only) is where the framework is clean: there the PCE controller drives
+ensemble bias to nearly zero while the nominal bias grows quadratically. Mode A is a
+poorly-conditioned actuator with almost no authority at the original parameters and
+a large irreducible spread even when retuned, so the robustness margin is small.
+That is a property of the Mode-A actuator, not of the PCE method.
+</p>
+
+<div class="note">
+<strong>What these numbers depend on.</strong> Absolute values depend on the target \(p^*\),
+the gains, and the grid. The <em>relative</em> PCE-vs-nominal comparison is the result.
+Gains were tuned for convergent tracking; the PI integral action makes steady-state
+tracking insensitive to their exact values. See
+<a href="{{ '/PIDE-UQ/code/' | relative_url }}">Code &amp; reproduction</a> for the
+verification that was performed.
+</div>

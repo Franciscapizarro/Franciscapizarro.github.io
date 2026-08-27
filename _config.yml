@@ -1,3 +1,23 @@
-theme: jekyll-theme-minimal
-title: Fran's homepage
-description: Bookmark this to keep an eye on my project updates!
+title: Francisca Pizarro
+description: Uncertainty quantification and control of stochastic gene regulatory networks
+url: "https://franciscapizarro.github.io"
+baseurl: ""
+
+# Site owner / poster contact — EDIT THESE
+author:
+  name: Francisca Pizarro
+  affiliation: KU Leuven
+  email: ""          # e.g. francisca.pizarro@kuleuven.be
+  orcid: ""          # e.g. 0000-0000-0000-0000
+  github: Franciscapizarro
+
+# No remote theme: layouts in _layouts/ are self-contained, so the build
+# does not depend on a theme gem being available.
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+exclude:
+  - _unused
+  - README.md

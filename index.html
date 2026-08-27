@@ -1,0 +1,42 @@
+---
+layout: default
+title: Uncertainty quantification in stochastic gene regulatory networks
+subtitle: Supplementary material for the conference poster
+permalink: /
+---
+
+<p class="lead">
+This page holds the material that did not fit on the poster: the full stability
+derivation behind the numerical scheme, the convergence and cost study, and the
+complete controller-robustness results including the case where the method does
+<em>not</em> work well.
+</p>
+
+<p>
+The work solves a partial integro-differential equation (PIDE) for the protein
+distribution of a self-regulating gene, with kinetic parameters treated as random
+variables. An intrusive polynomial chaos expansion (PCE) and a Galerkin projection
+turn the stochastic PIDE into a coupled deterministic system for the PCE
+coefficients, discretised with summation-by-parts (SBP) operators and
+simultaneous-approximation-term (SAT) boundary conditions.
+</p>
+
+<ul class="cards">
+  <li><a href="{{ '/PIDE-UQ/' | relative_url }}">
+    <b>Overview</b><span>Model, Galerkin projection, and how the pieces fit together.</span></a></li>
+  <li><a href="{{ '/PIDE-UQ/derivations/' | relative_url }}">
+    <b>Derivations</b><span>Energy-stability analysis and the SAT penalty bound.</span></a></li>
+  <li><a href="{{ '/PIDE-UQ/convergence/' | relative_url }}">
+    <b>Convergence &amp; cost</b><span>Grid and PCE-order refinement, accuracy metrics, CPU times.</span></a></li>
+  <li><a href="{{ '/PIDE-UQ/control/' | relative_url }}">
+    <b>Control robustness</b><span>PCE-aware vs nominal controller, and the Mode-A limitation.</span></a></li>
+  <li><a href="{{ '/PIDE-UQ/code/' | relative_url }}">
+    <b>Code &amp; reproduction</b><span>Which script produces which result.</span></a></li>
+</ul>
+
+<h2>Contact</h2>
+<p>
+{{ site.author.name }}{% if site.author.affiliation %}, {{ site.author.affiliation }}{% endif %}.
+{% if site.author.email %}<a href="mailto:{{ site.author.email }}">{{ site.author.email }}</a>{% endif %}
+{% if site.author.orcid %}· <a href="https://orcid.org/{{ site.author.orcid }}">ORCID {{ site.author.orcid }}</a>{% endif %}
+</p>
