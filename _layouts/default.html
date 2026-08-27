@@ -10,7 +10,14 @@
   window.MathJax = {
     tex: {
       inlineMath: [['\\(', '\\)']],
-      displayMath: [['\\[', '\\]'], ['$$', '$$']]
+      displayMath: [['\\[', '\\]'], ['$$', '$$']],
+      macros: {
+        sat: '\\operatorname{sat}',
+        sgn: '\\operatorname{sign}',
+        TV:  '\\operatorname{TV}',
+        Ex:  '\\mathbb{E}',
+        dd:  '\\,\\mathrm{d}'
+      }
     },
     svg: { fontCache: 'global' }
   };
@@ -25,10 +32,8 @@
     <a class="brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
     <nav>
       <a href="{{ '/PIDE-UQ/' | relative_url }}">Overview</a>
-      <a href="{{ '/PIDE-UQ/derivations/' | relative_url }}">Derivations</a>
       <a href="{{ '/PIDE-UQ/convergence/' | relative_url }}">Convergence</a>
       <a href="{{ '/PIDE-UQ/control/' | relative_url }}">Control</a>
-      <a href="{{ '/PIDE-UQ/code/' | relative_url }}">Code</a>
     </nav>
   </div>
 </header>
@@ -43,8 +48,7 @@
 
 <footer class="site-footer">
   <div class="wrap">
-    <p>{{ site.author.name }}{% if site.author.affiliation %} · {{ site.author.affiliation }}{% endif %}
-    {% if site.author.email %}· <a href="mailto:{{ site.author.email }}">{{ site.author.email }}</a>{% endif %}</p>
+    <p>{{ site.author.name }}{% if site.author.affiliation %} · {{ site.author.affiliation }}{% endif %}{% if site.author.email %} · {{ site.author.email }}{% endif %}</p>
     <p class="fine">Supplementary material for the conference poster. Last built {{ site.time | date: "%-d %B %Y" }}.</p>
   </div>
 </footer>

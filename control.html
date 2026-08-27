@@ -1,17 +1,227 @@
 ---
 layout: default
-title: Control robustness
-subtitle: PCE-aware feedback vs nominal-model feedback — including where it does not help
+title: Control law and robustness
+subtitle: How the tracking error is built from the ensemble mean, and whether reading it buys anything
 permalink: /PIDE-UQ/control/
 ---
 
 <p class="lead">
-The poster claims that closing the loop on the PCE ensemble mean removes
-nominal-model bias and lowers worst-case error. This page gives the experiment, the
-numbers behind that claim, and the two places where the advantage is small or absent.
+Two things on this page. First the control law itself: how a scalar tracking error is
+constructed from the PCE ensemble-mean density, and how it drives the inducer, in both
+the one-dimensional self-regulation case and the two-dimensional toggle switch. Then
+the experiment that tests whether feeding back the ensemble mean is actually more
+robust than feeding back a nominal model.
 </p>
 
-<h2>The question and the design</h2>
+<h2>Feedback from the ensemble mean</h2>
+
+<p>
+The controlled density is expanded in the orthonormal PCE basis
+\(\{\Phi_j(\gamma_x)\}_{j=0}^{L-1}\) of the uncertain degradation rate,
+\(p(t,x,\gamma_x)\approx\sum_{j=0}^{L-1} a_j(t,x)\,\Phi_j(\gamma_x)\). The feedback is
+driven by the <em>ensemble-mean</em> density, which is exactly the zeroth PCE
+coefficient — no extra computation, no sampling:
+</p>
+
+<p>
+$$ \mu(x,t) \;:=\; a_0(t,x) \;=\; \Ex_{\gamma_x}\!\big[p(t,x,\gamma_x)\big],
+   \qquad \int_{0}^{L_X}\mu(x,t)\dd x = 1 . $$
+</p>
+
+<p>
+That identity is the whole reason the loop is affordable. The controller needs
+\(\mathbb{E}[p]\) at every step; with an intrusive PCE it is already sitting in the
+state vector.
+</p>
+
+<figure>
+  <img src="{{ '/assets/img/autoregulation.png' | relative_url }}"
+       alt="Schematic: a gene expresses protein P, P activates its own gene, and an external inducer I represses P">
+  <figcaption>
+    The one-dimensional plant. The gene expresses protein \(P\), which activates its own
+    transcription (positive autoregulation, \(H\lt 0\)); the external inducer \(I\) acts on
+    \(P\) as the single control input.
+  </figcaption>
+</figure>
+
+<h2>Tracking error, one dimension</h2>
+
+<h3>Mean tracking</h3>
+
+<p>With a target mean protein level \(\mu^\star\),</p>
+
+<p>
+$$ e_{\mathrm{mean}}(t) \;=\; \mu^\star-\int_{0}^{L_X} x\,\mu(x,t)\dd x . $$
+</p>
+
+<h3>Distribution tracking</h3>
+
+<p>
+Tracking a whole target shape \(p^\star(x)\) (normalised, \(\int p^\star\dd x = 1\)) is the
+harder problem, because a single scalar has to summarise a mismatch between two
+functions. The construction used here splits that into a <em>direction</em>, taken from
+the displacement of the means, and a <em>magnitude</em>, taken from a distribution
+distance:
+</p>
+
+<p>
+$$ e_{\mathrm{pdf}}(t) \;=\;
+   \sgn\!\left(\int_{0}^{L_X} x\,\big[p^\star(x)-\mu(x,t)\big]\dd x\right)
+   \cdot D\big(p^\star,\mu(\cdot,t)\big), $$
+</p>
+
+<p>with the distance \(D\) chosen from</p>
+
+<p>
+$$ D_{L^2}=\!\left(\int_0^{L_X}\!(p^\star-\mu)^2\dd x\right)^{\!1/2}\!,
+   \quad
+   D_{\TV}=\tfrac12\!\int_0^{L_X}\!\big|p^\star-\mu\big|\dd x,
+   \quad
+   D_{\mathrm{MSE}}=\int_0^{L_X}\!(p^\star-\mu)^2\dd x . $$
+</p>
+
+<div class="note">
+<strong>This is the signal that chatters.</strong> Every distance above is non-negative and
+floors at the residual shape mismatch, which a single global inducer cannot drive to
+zero. Near steady state the magnitude therefore stops decreasing while the sign
+function keeps flipping as the mean crosses the target — so \(e_{\mathrm{pdf}}\)
+oscillates rather than settling. That is why the deployment below is run in lock-step
+rather than by replaying a saved \(I(t)\).
+</div>
+
+<h2>Inducer control law</h2>
+
+<p>
+With \(e(t)\in\{e_{\mathrm{mean}}(t),\,e_{\mathrm{pdf}}(t)\}\):
+</p>
+
+<p>
+$$ u_{\mathrm{ctrl}}(t)=
+   \begin{cases}
+     u_0 + K_p\,e(t), & \text{(P)}\\[4pt]
+     u_0 + K_p\,e(t) + K_i\displaystyle\int_0^t e(\tau)\dd\tau . & \text{(PI)}
+   \end{cases} $$
+</p>
+
+<p>
+As implemented, the command is saturated to the admissible inducer range,
+\(u_{\mathrm{ctrl}}(t)\leftarrow \sat_{[u_{\min},\,u_{\max}]}\big(u_{\mathrm{ctrl}}(t)\big)\),
+with \(\sat_{[a,b]}(z)=\max\big(a,\min(b,z)\big)\).
+</p>
+
+<p>
+The integral action is what makes the steady-state result insensitive to the exact
+gains — a point that matters for the robustness comparison below, since both
+controllers must share gains for the comparison to isolate the feedback source.
+</p>
+
+<h2>Two-dimensional toggle switch</h2>
+
+<p>
+The same construction extends to a two-gene mutual-repression network — the classic
+toggle switch. Two genes each express a protein; each protein represses the other
+gene, which is what makes the system bistable. Here the state is a joint density
+\(p(t,x_1,x_2)\) over both protein levels, and there are two inducers instead of one.
+</p>
+
+<figure>
+  <img src="{{ '/assets/img/toggle_switch.png' | relative_url }}"
+       alt="Toggle switch schematic: gene 1 expresses P1, gene 2 expresses P2, each protein inhibits the other gene, and two inducers act on the proteins">
+  <figcaption>
+    The toggle switch. Each gene expresses its protein; \(P_1\) inhibits gene 2 and
+    \(P_2\) inhibits gene 1 (mutual repression). Two external inducers act on the
+    proteins as control inputs.
+  </figcaption>
+</figure>
+
+<h3>Mean joint density and its marginals</h3>
+
+<p>
+Let \(\mu(x_1,x_2,t):=a_0(t,x_1,x_2)=\Ex\big[p(t,x_1,x_2,\boldsymbol{\theta})\big]\) be the
+mean joint density — again the zeroth PCE coefficient. Its two marginals are
+</p>
+
+<p>
+$$ \mu_1(x_1,t)=\int \mu(x_1,x_2,t)\dd x_2,
+   \qquad
+   \mu_2(x_2,t)=\int \mu(x_1,x_2,t)\dd x_1 . $$
+</p>
+
+<p>Each marginal mean is normalised by its own marginal mass:</p>
+
+<p>
+$$ \bar{x}_1(t)=\frac{\displaystyle\int x_1\,\mu_1(x_1,t)\dd x_1}{\displaystyle\int \mu_1(x_1,t)\dd x_1},
+   \qquad
+   \bar{x}_2(t)=\frac{\displaystyle\int x_2\,\mu_2(x_2,t)\dd x_2}{\displaystyle\int \mu_2(x_2,t)\dd x_2}. $$
+</p>
+
+<p>
+The normalisation is not cosmetic: it keeps the error robust to the small numerical
+mass loss that the truncated domain and the weak boundary treatment introduce.
+</p>
+
+<h3>Per-channel error and the decentralized law</h3>
+
+<p>
+With targets \(\mu_1^\star,\mu_2^\star\) and actuation sign \(s_k\in\{+1,-1\}\) (\(+1\)
+activating inducer, \(-1\) repressing):
+</p>
+
+<p>
+$$ e_k(t)=s_k\big(\mu_k^\star-\bar{x}_k(t)\big),\qquad k=1,2 . $$
+</p>
+
+<p>
+Two inducers \(I=[\,I_1,\,I_2\,]^\top\), one independent loop per protein — no
+cross-terms, no joint design:
+</p>
+
+<p>
+$$ I_k(t)=\sat_{[u_{\min,k},\,u_{\max,k}]}\big(v_k(t)\big),\qquad
+   v_k(t)=
+   \begin{cases}
+     u_{0,k}+K_{p,k}\,e_k(t), & \text{(P)}\\[4pt]
+     u_{0,k}+K_{p,k}\,e_k(t)+K_{i,k}\displaystyle\int_0^t e_k(\tau)\dd\tau . & \text{(PI)}
+   \end{cases} $$
+</p>
+
+<h3>Anti-windup</h3>
+
+<p>
+The integral term uses conditional-integration anti-windup: on channel \(k\) the
+integrator is frozen — not updated — whenever the unsaturated command exceeds a limit
+while the error still drives it further into saturation, that is when
+</p>
+
+<p>
+$$ \big(v_k \gt u_{\max,k}\ \wedge\ e_k \gt 0\big)
+   \quad\text{or}\quad
+   \big(v_k \lt u_{\min,k}\ \wedge\ e_k \lt 0\big). $$
+</p>
+
+<p>
+Without this, a channel pinned at a saturation limit keeps accumulating error it
+cannot act on, and the loop overshoots badly on the way back. It matters more here
+than in the one-dimensional case, because the toggle switch's bistability means one
+channel can sit hard against a limit for a long stretch while the other moves.
+</p>
+
+<div class="note">
+<strong>Check the inducer indexing on the schematic.</strong> The controller pairs each
+inducer with its own channel: \(I_1\) drives \(e_1 = s_1(\mu_1^\star-\bar{x}_1)\), and
+\(I_2\) drives \(e_2\). In the figure above, however, the inhibition arrows are drawn
+crossed — \(I_2\) lands on \(P_1\) and \(I_1\) on \(P_2\). Either the figure labels are
+swapped, or the intent is indirect actuation through the mutual repression, in which
+case the equations' pairing needs revisiting. Worth resolving before the figure goes
+into the paper; it is a labelling question, not a problem with the law itself.
+</div>
+
+<div class="note">
+<strong>Results not on this page yet.</strong> Everything below is the one-dimensional case.
+The two-dimensional solvers exist, but their controlled results have not been added here.
+</div>
+
+<h2>Does the ensemble mean help? The experiment</h2>
 
 <p>
 Is a PCE-aware controller more robust than a nominal-model-feedback controller for
@@ -44,12 +254,11 @@ to the target \(p^*(x)\).
 </p>
 
 <div class="note">
-<strong>Deployment is live, not replayed.</strong> The error signal
-\(\mathrm{sign}(\text{mean gap})\cdot\|p^*-p\|\) chatters near steady state: the sign flips
-every step while the magnitude floors at the residual shape mismatch. Replaying a
-coarsely sampled chattering trajectory aliases it — matching required roughly 9000
-samples in testing. Instead the nominal feedback model is integrated in lock-step
-with the ensemble and the same \(I\) is applied to both.
+<strong>Deployment is live, not replayed.</strong> As noted above, \(e_{\mathrm{pdf}}\)
+chatters near steady state: the sign flips every step while the magnitude floors at the
+residual shape mismatch. Replaying a coarsely sampled chattering trajectory aliases it —
+matching required roughly 9000 samples in testing. Instead the nominal feedback model is
+integrated in lock-step with the ensemble and the same \(I\) is applied to both.
 </div>
 
 <h2>Headline result at ±20%</h2>
@@ -198,7 +407,5 @@ That is a property of the Mode-A actuator, not of the PCE method.
 <strong>What these numbers depend on.</strong> Absolute values depend on the target \(p^*\),
 the gains, and the grid. The <em>relative</em> PCE-vs-nominal comparison is the result.
 Gains were tuned for convergent tracking; the PI integral action makes steady-state
-tracking insensitive to their exact values. See
-<a href="{{ '/PIDE-UQ/code/' | relative_url }}">Code &amp; reproduction</a> for the
-verification that was performed.
+tracking insensitive to their exact values.
 </div>

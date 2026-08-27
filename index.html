@@ -6,10 +6,10 @@ permalink: /
 ---
 
 <p class="lead">
-This page holds the material that did not fit on the poster: the full stability
-derivation behind the numerical scheme, the convergence and cost study, and the
-complete controller-robustness results including the case where the method does
-<em>not</em> work well.
+This page holds the material that did not fit on the poster: the convergence and cost
+study behind the numerical scheme, the control law in full, and the complete
+controller-robustness results — including the case where the method does <em>not</em>
+work well.
 </p>
 
 <p>
@@ -24,19 +24,15 @@ simultaneous-approximation-term (SAT) boundary conditions.
 <ul class="cards">
   <li><a href="{{ '/PIDE-UQ/' | relative_url }}">
     <b>Overview</b><span>Model, Galerkin projection, and how the pieces fit together.</span></a></li>
-  <li><a href="{{ '/PIDE-UQ/derivations/' | relative_url }}">
-    <b>Derivations</b><span>Energy-stability analysis and the SAT penalty bound.</span></a></li>
   <li><a href="{{ '/PIDE-UQ/convergence/' | relative_url }}">
     <b>Convergence &amp; cost</b><span>Grid and PCE-order refinement, accuracy metrics, CPU times.</span></a></li>
   <li><a href="{{ '/PIDE-UQ/control/' | relative_url }}">
-    <b>Control robustness</b><span>PCE-aware vs nominal controller, and the Mode-A limitation.</span></a></li>
-  <li><a href="{{ '/PIDE-UQ/code/' | relative_url }}">
-    <b>Code &amp; reproduction</b><span>Which script produces which result.</span></a></li>
+    <b>Control law &amp; robustness</b><span>Tracking errors from the ensemble mean, the inducer law, and PCE-aware vs nominal feedback.</span></a></li>
 </ul>
 
 <h2>Contact</h2>
 <p>
 {{ site.author.name }}{% if site.author.affiliation %}, {{ site.author.affiliation }}{% endif %}.
-{% if site.author.email %}<a href="mailto:{{ site.author.email }}">{{ site.author.email }}</a>{% endif %}
-{% if site.author.orcid %}· <a href="https://orcid.org/{{ site.author.orcid }}">ORCID {{ site.author.orcid }}</a>{% endif %}
+{% if site.author.email %}<br>{{ site.author.email }}{% endif %}
+{% if site.author.orcid %}<br><a href="https://orcid.org/{{ site.author.orcid }}">ORCID {{ site.author.orcid }}</a>{% endif %}
 </p>

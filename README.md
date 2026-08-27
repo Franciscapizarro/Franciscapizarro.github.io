@@ -5,28 +5,18 @@ chaos expansion work. Built with Jekyll on GitHub Pages.
 
 Live at <https://franciscapizarro.github.io>
 
-## Before you publish — two edits
-
-1. **`_config.yml`** — fill in `author.email` and `author.orcid`. They are empty
-   strings right now, and the contact block on the front page hides itself when they
-   are empty.
-2. **`code.html`** — the box at the top says the repository is not public yet.
-   Replace it with the real repository URL when there is one.
-
 ## Structure
 
 | File | URL |
 |---|---|
 | `index.html` | `/` |
 | `PIDE-UQ.html` | `/PIDE-UQ/` |
-| `derivations.html` | `/PIDE-UQ/derivations/` |
 | `convergence.html` | `/PIDE-UQ/convergence/` |
 | `control.html` | `/PIDE-UQ/control/` |
-| `code.html` | `/PIDE-UQ/code/` |
 | `_layouts/default.html` | page shell — nav, MathJax, footer |
 | `assets/css/style.css` | all styling, light + dark |
 | `assets/img/` | figures |
-| `_unused/` | the two original stub files, kept out of the build |
+| `_unused/` | superseded stubs, excluded from the build via `_config.yml` |
 
 Content pages are `.html`, not `.md`, on purpose: Jekyll passes HTML through without
 running it past kramdown, so LaTeX reaches MathJax exactly as written. No escaping
@@ -39,16 +29,34 @@ MathJax 3 is configured in `_layouts/default.html`:
 - inline: `\( ... \)`
 - display: `$$ ... $$` or `\[ ... \]`
 
-**One hazard.** Liquid, the template engine, treats `{{` as the start of a tag. LaTeX
-almost never produces `{{`, but if you ever write something like `\mathbf{{x}}`, the
-build will break. Insert a space (`\mathbf{ {x}}`) or wrap the block in
-`{% raw %} ... {% endraw %}`. A lone `}}` (from `p_{\text{PCE}}`, for instance) is
-harmless.
+### Custom macros
+
+Defined in the MathJax config so LaTeX from the papers can be pasted in unchanged. Add
+new ones to the `macros:` block in `_layouts/default.html`.
+
+| Macro | Expands to |
+|---|---|
+| `\sat` | `\operatorname{sat}` |
+| `\sgn` | `\operatorname{sign}` |
+| `\TV` | `\operatorname{TV}` |
+| `\Ex` | `\mathbb{E}` |
+| `\dd` | `\,\mathrm{d}` |
+
+### Two hazards
+
+**Liquid.** The template engine treats `{{` as the start of a tag. LaTeX almost never
+produces `{{`, but if you write something like `\mathbf{{x}}` the build breaks. Insert
+a space (`\mathbf{ {x}}`) or wrap the block in `{% raw %} ... {% endraw %}`. A lone `}}`
+(from `p_{\text{PCE}}`, for instance) is harmless.
+
+**Angle brackets.** A raw `<` inside maths can confuse the HTML parser. Use `\lt` and
+`\gt` instead of `<` and `>`.
 
 ## Adding a page
 
 Copy any existing page, change the front matter, and add it to the `<nav>` in
-`_layouts/default.html`:
+`_layouts/default.html` — the nav is hand-maintained, so a new page is invisible until
+you do:
 
 ```html
 ---
@@ -59,16 +67,16 @@ permalink: /PIDE-UQ/your-page/
 ---
 ```
 
-## Publishing
+If you delete a page, remove its nav entry and its card in `index.html` too, or the
+links 404.
 
-The repository must be named `Franciscapizarro.github.io` (matching the account name)
-for it to serve at the root domain. Upload the **contents** of this folder to the
-repository root — not the folder itself. Then in the repository, under
-*Settings → Pages*, set the source to *Deploy from a branch*, branch `main`, folder
-`/ (root)`. The first build takes a couple of minutes; check *Actions* if the site
-does not appear.
+## Contact details
 
-## Local preview (optional)
+`_config.yml` holds `author.email` and `author.orcid`. The email is written with
+`[at]` rather than `@` as spam obfuscation, so it is rendered as plain text — do not
+wrap it in a `mailto:` link unless you switch it to a real address.
+
+## Local preview
 
 ```bash
 gem install bundler jekyll
