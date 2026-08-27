@@ -7,8 +7,8 @@ baseurl: ""
 author:
   name: Francisca Pizarro
   affiliation: KU Leuven
-  email: ""          # e.g. francisca.pizarro@kuleuven.be
-  orcid: ""          # e.g. 0000-0000-0000-0000
+  email: francisca.pizarrogalleguillos[at]kuleuven.be
+  orcid: 0009-0002-0291-0772
   github: Franciscapizarro
 
 # No remote theme: layouts in _layouts/ are self-contained, so the build
