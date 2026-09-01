@@ -1,17 +1,9 @@
 ---
 layout: default
 title: Control law and robustness
-subtitle: How the tracking error is built from the ensemble mean, and whether reading it buys anything
+subtitle: How the tracking error is built from the ensemble mean
 permalink: /PIDE-UQ/control/
 ---
-
-<p class="lead">
-Two things on this page. First the control law itself: how a scalar tracking error is
-constructed from the PCE ensemble-mean density, and how it drives the inducer, in both
-the one-dimensional self-regulation case and the two-dimensional toggle switch. Then
-the experiment that tests whether feeding back the ensemble mean is actually more
-robust than feeding back a nominal model.
-</p>
 
 <h2>Feedback from the ensemble mean</h2>
 
@@ -19,8 +11,8 @@ robust than feeding back a nominal model.
 The controlled density is expanded in the orthonormal PCE basis
 \(\{\Phi_j(\gamma_x)\}_{j=0}^{L-1}\) of the uncertain degradation rate,
 \(p(t,x,\gamma_x)\approx\sum_{j=0}^{L-1} a_j(t,x)\,\Phi_j(\gamma_x)\). The feedback is
-driven by the <em>ensemble-mean</em> density, which is exactly the zeroth PCE
-coefficient — no extra computation, no sampling:
+driven by the <em>ensemble-mean</em> density, obtained from the zeroth PCE
+coefficient:
 </p>
 
 <p>
@@ -29,8 +21,7 @@ $$ \mu(x,t) \;:=\; a_0(t,x) \;=\; \Ex_{\gamma_x}\!\big[p(t,x,\gamma_x)\big],
 </p>
 
 <p>
-That identity is the whole reason the loop is affordable. The controller needs
-\(\mathbb{E}[p]\) at every step; with an intrusive PCE it is already sitting in the
+The controller needs \(\mathbb{E}[p]\) at every step; with an intrusive PCE it is already sitting in the
 state vector.
 </p>
 
@@ -207,13 +198,14 @@ channel can sit hard against a limit for a long stretch while the other moves.
 </p>
 
 <div class="note">
-<strong>Check the inducer indexing on the schematic.</strong> The controller pairs each
-inducer with its own channel: \(I_1\) drives \(e_1 = s_1(\mu_1^\star-\bar{x}_1)\), and
-\(I_2\) drives \(e_2\). In the figure above, however, the inhibition arrows are drawn
-crossed — \(I_2\) lands on \(P_1\) and \(I_1\) on \(P_2\). Either the figure labels are
-swapped, or the intent is indirect actuation through the mutual repression, in which
-case the equations' pairing needs revisiting. Worth resolving before the figure goes
-into the paper; it is a labelling question, not a problem with the law itself.
+<strong>Reading the inducer arrows.</strong> In the schematic each inducer is drawn
+acting on the protein with the <em>other</em> index — \(I_2\) on \(P_1\), \(I_1\) on
+\(P_2\) — but the net effect of \(I_k\) is on channel \(k\). The inducer acts by
+sequestration, entering \(c_k\) as an apparent shift of the Hill threshold rather than
+as a removal term for the opposite protein: \(I_1\) appears only in \(c_1\), never in
+\(c_2\). Raising \(I_1\) raises \(K_{12}\), lowers the repression fraction and so raises
+\(x_1\). Hence \(\partial\bar{x}_k/\partial I_k \gt 0\) and \(s_k = +1\) for both
+channels, with \(\partial\bar{x}_k/\partial I_j \lt 0\) off-diagonal.
 </div>
 
 <div class="note">

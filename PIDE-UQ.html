@@ -43,6 +43,65 @@ bimodal distributions.
   </figcaption>
 </figure>
 
+<h3>Extension to \(n\) interacting genes</h3>
+
+<p>
+The single-gene equation above is the \(n=1\) case of a multivariate PIDE. For a network
+of \(n\) genes, each expressing one protein, the state is the joint density
+\(p(t,\mathbf{x})\) over the whole protein vector
+\(\mathbf{x}=(x_1,\dots,x_n)\), and every species contributes one degradation term and
+one burst term:
+</p>
+
+<p>
+$$
+\frac{\partial p}{\partial t}(t,\mathbf{x})
+= \sum_{i=1}^{n} \frac{\partial}{\partial x_i}\big[\gamma_x^i\, x_i\, p(t,\mathbf{x})\big]
++ \sum_{i=1}^{n}\left(k_m^i \int_0^{x_i} \beta_i(x_i-y_i)\, c_i(\mathbf{y}_i)\,
+  p(t,\mathbf{y}_i)\dd y_i\right),
+$$
+</p>
+
+<p>
+with \(p:\mathbb{R}_{+}\times\mathbb{R}_{+}^{n}\rightarrow\mathbb{R}_{+}\setminus\{0\}\)
+the temporal evolution of the protein probability density function, and each species
+carrying its own burst kernel
+</p>
+
+<p>
+$$ \beta_i(x_i-y_i) = \frac{1}{b_i}\exp\!\left[-\frac{x_i-y_i}{b_i}\right]
+   - \delta(x_i-y_i) . $$
+</p>
+
+<p>
+Every kinetic parameter is now indexed by species: degradation \(\gamma_x^i\),
+transcription \(k_m^i\), mean burst size \(b_i = k_x^i/\gamma_m^i\). Each burst integral
+runs over <em>one</em> coordinate only, the \(i\)-th, with the others held fixed —
+\(\mathbf{y}_i\) denotes the state vector with its \(i\)-th component replaced by the
+integration variable \(y_i\),
+</p>
+
+<p>
+$$ \mathbf{y}_i = (x_1,\dots,x_{i-1},\,y_i,\,x_{i+1},\dots,x_n) . $$
+</p>
+
+<div class="note">
+<strong>Where the coupling enters.</strong> The degradation terms are separable and each
+integral acts on a single coordinate, so the sums themselves do not couple the species.
+The coupling is contained in \(c_i\), which depends on the other proteins' levels. For a
+two-gene toggle switch, \(c_1\) is a decreasing Hill function of \(x_2\) and \(c_2\) of
+\(x_1\). If every \(c_i\) depends only on \(x_i\), the system reduces to \(n\)
+independent copies of the one-dimensional problem.
+</div>
+
+<p>
+The joint density is discretised on an \(N^n\) grid, and the Galerkin projection below
+multiplies that system by the number of retained PCE coefficients. The results reported
+on this site are the one-dimensional case; the
+<a href="{{ '/PIDE-UQ/control/' | relative_url }}">control page</a> gives the
+two-dimensional toggle switch formulation.
+</p>
+
 <h2>Where the uncertainty goes</h2>
 
 <p>
@@ -129,8 +188,7 @@ $$ \frac{\partial \mathbf{a}^L}{\partial t}
 
 <p>
 That extra coupling is why the two-parameter case needs a higher expansion order to
-reach the same PDF accuracy — see
-<a href="{{ '/PIDE-UQ/convergence/' | relative_url }}">Convergence &amp; cost</a>.
+reach the same PDF accuracy.
 </p>
 
 <h2>Why intrusive PCE at all</h2>
