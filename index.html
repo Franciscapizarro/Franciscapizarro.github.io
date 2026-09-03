@@ -7,30 +7,788 @@ permalink: /
 
 <p class="lead">
 This page holds the material that did not fit on the poster: the convergence and cost
-study behind the numerical scheme, the control law in full, and the complete
-controller-robustness results — including the case where the method does <em>not</em>
-work well.
+study behind the numerical scheme, and the control law in full.
 </p>
 
 <p>
-The work solves a partial integro-differential equation (PIDE) for the protein
-distribution of a self-regulating gene, with kinetic parameters treated as random
-variables. An intrusive polynomial chaos expansion (PCE) and a Galerkin projection
-turn the stochastic PIDE into a coupled deterministic system for the PCE
-coefficients, discretised with summation-by-parts (SBP) operators and
-simultaneous-approximation-term (SAT) boundary conditions.
+The framework applies to gene regulatory networks of \(n\) interacting genes. A partial
+integro-differential equation (PIDE) governs the joint probability density of the
+protein levels, with kinetic parameters treated as random variables. An intrusive
+polynomial chaos expansion (PCE) and a Galerkin projection turn the stochastic PIDE
+into a coupled deterministic system for the PCE coefficients, discretised with
+summation-by-parts (SBP) operators and simultaneous-approximation-term (SAT) boundary
+conditions.
 </p>
 
-<ul class="cards">
-  <li><a href="{{ '/PIDE-UQ/' | relative_url }}">
-    <b>Overview</b><span>Model, Galerkin projection, and how the pieces fit together.</span></a></li>
-  <li><a href="{{ '/PIDE-UQ/convergence/' | relative_url }}">
-    <b>Convergence &amp; cost</b><span>Grid and PCE-order refinement, accuracy metrics, CPU times.</span></a></li>
-  <li><a href="{{ '/PIDE-UQ/control/' | relative_url }}">
-    <b>Control law &amp; robustness</b><span>Tracking errors from the ensemble mean, the inducer law, and PCE-aware vs nominal feedback.</span></a></li>
-</ul>
+<p>
+Two networks are used as test cases: a single self-regulating gene, and a two-gene
+toggle switch with mutual repression. The joint density is discretised on an \(N^n\)
+grid, which places the practical reach at small networks, on the order of three or
+four genes.
+</p>
 
-<h2>Contact</h2>
+<p class="fine">Select a section to expand it.</p>
+
+<details class="section" id="model" open>
+  <summary>
+    <span class="sec-title">The model and how uncertainty is propagated</span>
+    <span class="sec-blurb">PIDE for n interacting genes, the PCE basis, and the Galerkin projection.</span>
+  </summary>
+  <div class="section-body">
+
+<h3>The model</h3>
+
+<p>
+A single gene expresses one protein type \(X\) through its mRNA. Because mRNA
+degrades much faster than protein (\(\gamma_m \gg \gamma_x\)), protein arrives in
+uncorrelated bursts of mean size \(b = k_x/\gamma_m\), exponentially distributed.
+Under that assumption the protein probability density \(p(t,x)\) obeys the PIDE of
+Friedman <em>et al.</em>, extended to the multivariate case by Pájaro <em>et al.</em>:
+</p>
+
+<p>
+$$
+\frac{\partial p}{\partial t}(t,x)
+= \frac{\partial}{\partial x}\big[\gamma_x\, x\, p(t,x)\big]
++ k_m \int_0^{x} \beta(x-y)\, c(y)\, p(t,y)\, \mathrm{d}y ,
+$$
+</p>
+
+<p>
+with burst kernel \(\beta(x-y) = b^{-1}e^{-(x-y)/b} - \delta(x-y)\). The first term is
+degradation; the integral is burst production. The feedback enters through
+\(c(x) = [1-\rho(x)] + \varepsilon\,\rho(x)\) with the Hill function
+\(\rho(x) = x^{H}/(x^{H}+K^{H})\): a negative \(H\) means \(X\) activates its own
+transcription, which is the cooperative positive-feedback case that produces
+bimodal distributions.
+</p>
+
+<figure>
+  <img src="{{ '/assets/img/gene_network.png' | relative_url }}"
+       alt="Schematic of the gene regulatory network with DNA on/off states, mRNA, protein X, and degradation rates">
+  <figcaption>
+    The network. The gene switches between \(DNA^{\mathrm{on}}\) and \(DNA^{\mathrm{off}}\)
+    at rates \(k_{\mathrm{on}}, k_{\mathrm{off}}\); transcription at \(k_m\), translation at
+    \(k_x\), degradation at \(\gamma_m, \gamma_x\), leakage \(\varepsilon\). The dashed
+    line is the self-regulation of the gene by its own product.
+  </figcaption>
+</figure>
+
+<h4>Extension to \(n\) interacting genes</h4>
+
+<p>
+The single-gene equation above is the \(n=1\) case of a multivariate PIDE. For a network
+of \(n\) genes, each expressing one protein, the state is the joint density
+\(p(t,\mathbf{x})\) over the whole protein vector
+\(\mathbf{x}=(x_1,\dots,x_n)\), and every species contributes one degradation term and
+one burst term:
+</p>
+
+<p>
+$$
+\frac{\partial p}{\partial t}(t,\mathbf{x})
+= \sum_{i=1}^{n} \frac{\partial}{\partial x_i}\big[\gamma_x^i\, x_i\, p(t,\mathbf{x})\big]
++ \sum_{i=1}^{n}\left(k_m^i \int_0^{x_i} \beta_i(x_i-y_i)\, c_i(\mathbf{y}_i)\,
+  p(t,\mathbf{y}_i)\dd y_i\right),
+$$
+</p>
+
+<p>
+with \(p:\mathbb{R}_{+}\times\mathbb{R}_{+}^{n}\rightarrow\mathbb{R}_{+}\setminus\{0\}\)
+the temporal evolution of the protein probability density function, and each species
+carrying its own burst kernel
+</p>
+
+<p>
+$$ \beta_i(x_i-y_i) = \frac{1}{b_i}\exp\!\left[-\frac{x_i-y_i}{b_i}\right]
+   - \delta(x_i-y_i) . $$
+</p>
+
+<p>
+Every kinetic parameter is now indexed by species: degradation \(\gamma_x^i\),
+transcription \(k_m^i\), mean burst size \(b_i = k_x^i/\gamma_m^i\). Each burst integral
+runs over <em>one</em> coordinate only, the \(i\)-th, with the others held fixed —
+\(\mathbf{y}_i\) denotes the state vector with its \(i\)-th component replaced by the
+integration variable \(y_i\),
+</p>
+
+<p>
+$$ \mathbf{y}_i = (x_1,\dots,x_{i-1},\,y_i,\,x_{i+1},\dots,x_n) . $$
+</p>
+
+<div class="note">
+<strong>Where the coupling enters.</strong> The degradation terms are separable and each
+integral acts on a single coordinate, so the sums themselves do not couple the species.
+The coupling is contained in \(c_i\), which depends on the other proteins' levels. For a
+two-gene toggle switch, \(c_1\) is a decreasing Hill function of \(x_2\) and \(c_2\) of
+\(x_1\). If every \(c_i\) depends only on \(x_i\), the system reduces to \(n\)
+independent copies of the one-dimensional problem.
+</div>
+
+<p>
+The joint density is discretised on an \(N^n\) grid, and the Galerkin projection below
+multiplies that system by the number of retained PCE coefficients. The results reported
+on this site are the one-dimensional case; the
+<a href="#control">control section</a> gives the
+two-dimensional toggle switch formulation.
+</p>
+
+<h3>Where the uncertainty goes</h3>
+
+<p>
+The kinetic parameters are not known exactly — measurement error and cell-to-cell
+variability both contribute. They are modelled as random variables. Two cases are
+studied:
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>Kinetic and numerical parameters. Kinetic values follow Pájaro <em>et al.</em></caption>
+  <thead>
+    <tr><th>Parameter</th><th>Description</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>\(H\)</td><td>Hill coefficient</td><td>4</td></tr>
+    <tr><td>\(K\)</td><td>Hill constant</td><td>45</td></tr>
+    <tr><td>\(\varepsilon\)</td><td>Leakage rate</td><td>0.15</td></tr>
+    <tr><td>\(k_m\)</td><td>Transcription rate</td><td>\(\mathcal{U}[8,10]\)</td></tr>
+    <tr><td>\(k_x\)</td><td>Translation rate</td><td>400</td></tr>
+    <tr><td>\(\gamma_x\)</td><td>Protein degradation rate</td><td>\(\mathcal{U}[0.8,1.2]\)</td></tr>
+    <tr><td>\(\gamma_m\)</td><td>mRNA degradation rate</td><td>25</td></tr>
+    <tr><td>\(N\)</td><td>Grid points</td><td>75–1500</td></tr>
+    <tr><td>SBP order</td><td>Spatial discretisation</td><td>4</td></tr>
+    <tr><td>\(d\)</td><td>Polynomial chaos order</td><td>2–6</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+Both uncertain parameters are uniform, so the orthonormal basis is the normalised
+Legendre family, after mapping each parameter onto the standard variable on
+\([-1,1]\).
+</p>
+
+<h3>Galerkin projection</h3>
+
+<p>
+The solution is expanded in a truncated PCE of total order \(d\),
+</p>
+
+<p>
+$$ p(t,x,\gamma_x) \approx \sum_{j=0}^{L-1} a_j(t,x)\,\Phi_j(\gamma_x), \qquad
+   L = \frac{(n_\theta + d)!}{n_\theta!\,d!} , $$
+</p>
+
+<p>
+substituted into the PIDE, multiplied by each basis polynomial \(\Phi_k\), and
+averaged over the parameter distribution. Orthonormality
+(\(\langle\Phi_j\Phi_k\rangle = \delta_{jk}\)) collapses the time-derivative and burst
+terms onto mode \(k\), while the degradation term keeps full coupling through the
+moments \(\langle\gamma_x\Phi_j\Phi_k\rangle\). In vector form, with
+\(\mathbf{a}^L = (a_0,\dots,a_{L-1})^\top\):
+</p>
+
+<p>
+$$ \frac{\partial \mathbf{a}^L}{\partial t}
+   = \frac{\partial}{\partial x}\big[x\,\mathbf{V}\,\mathbf{a}^L\big]
+   + \boldsymbol{\mathcal{B}}(\mathbf{a}^L),
+   \qquad V_{kj} := \langle \gamma_x\, \Phi_k \Phi_j \rangle . $$
+</p>
+
+<p>
+\(\mathbf{V}\) depends only on the distribution of \(\gamma_x\) and the basis, so it is
+precomputed once. The key structural point: because \(\mathcal{B}\) does not depend on
+\(\gamma_x\), the burst term introduces <em>no</em> mode coupling in the one-parameter case.
+</p>
+
+<h4>Two uncertain parameters</h4>
+
+<p>
+With \(\boldsymbol{\theta} = [\gamma_x, k_m]\) independent, the basis is a tensor product
+\(\Phi_\alpha(\boldsymbol{\theta}) = \phi_{\alpha_1}(\gamma_x)\phi_{\alpha_2}(k_m)\), and the burst
+operator factors as \(\mathcal{B}(p,k_m) = k_m(\mathcal{K}p)\). Now the burst term
+<em>does</em> couple modes:
+</p>
+
+<p>
+$$ \frac{\partial \mathbf{a}^L}{\partial t}
+   = \frac{\partial}{\partial x}\big[x\,\mathbf{V}\,\mathbf{a}^L\big]
+   + \mathbf{M}\,\mathcal{K}(\mathbf{a}^L),
+   \qquad M_{k\alpha} := \langle k_m\,\Phi_k\Phi_\alpha \rangle . $$
+</p>
+
+<p>
+That extra coupling is why the two-parameter case needs a higher expansion order to
+reach the same PDF accuracy.
+</p>
+
+<h3>Why intrusive PCE at all</h3>
+
+<p>
+Once the coefficients \(a_j(t,x)\) are available, the mean and variance come straight
+out of them, \(\mathbb{E}[p]\approx a_0\) and
+\(\mathrm{Var}[p]\approx\sum_{|i|\ge 1} a_i^2\langle\Phi_i^2\rangle\), with no further
+sampling. Because the coefficients are stored as time-resolved fields, the full PDF
+for <em>any</em> parameter realisation at <em>any</em> stored time is a polynomial
+evaluation. That is what makes the downstream control loop affordable: the
+controller reads \(\mathbb{E}[p]\) from the ensemble at every step.
+</p>
+
+  </div>
+</details>
+
+<details class="section" id="convergence">
+  <summary>
+    <span class="sec-title">Convergence and computational cost</span>
+    <span class="sec-blurb">What refines the answer, what only costs time.</span>
+  </summary>
+  <div class="section-body">
+
+<p class="lead">
+The short version: in the one-parameter problem the stochastic truncation error is
+already converged at the lowest order tested, so the accuracy is limited by the
+spatial grid. In the two-parameter problem that is no longer true.
+</p>
+
+<h3>Where the error actually lives</h3>
+
+<p>
+The domain is \(t\in[0,20]\), \(x\in[0,300]\), with a standard Gaussian initial condition.
+Grids of \(N\in\{75,\dots,1500\}\) points and PCE orders \(d\in\{2,\dots,6\}\) were swept, with
+Monte Carlo over \(10^4\) samples (generated with SELANSI) as the reference.
+</p>
+
+<p>
+Refining the mesh from \(N=75\) to \(N=300\) removes most of the \(L^2\) spatial error;
+beyond \(N\approx 1200\) further refinement buys very little. Raising the PCE order from
+\(d=2\) to \(d=6\), by contrast, barely moves the mean and variance at all. Both
+observations point the same way: for a single uniform uncertain parameter, an
+order-2 expansion is already spectrally converged, and the dominant error is the
+spatial discretisation.
+</p>
+
+<div class="note">
+<strong>Consequence for cost.</strong> If the stochastic error is converged at \(d=2\), then
+paying for \(d=6\) is paying for nothing. At \(N=1501\) that is the difference between
+911 s and 8107 s — a factor of about 9 for no gain in the quantities of interest.
+</div>
+
+<h3>Full-PDF accuracy, not just moments</h3>
+
+<p>
+Mean and variance are a weak test when the distribution can change shape. The PCE
+surrogate was therefore compared against the reference at \(t=20\) on the full PDF,
+ranked by total variation distance (mass redistribution) and Hellinger distance
+(shape, via square-root densities).
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>
+    Range across parameter realisations, best to worst case. Pointwise error
+    \(p_{\text{PCE}}-p_{\text{val}}\) stays of order \(10^{-3}\) in the one-parameter case,
+    with the largest deviations near \(x=0\).
+  </caption>
+  <thead>
+    <tr><th>Case</th><th>Config</th><th>Total variation</th><th>Hellinger</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1 uncertain parameter (\(\gamma_x\))</td>
+      <td>\(d=2\), \(N=1500\)</td>
+      <td>\(2.5\times10^{-3}\) – \(3.17\times10^{-2}\)</td>
+      <td>\(3.8\times10^{-3}\) – \(3.66\times10^{-2}\)</td>
+    </tr>
+    <tr>
+      <td>2 uncertain parameters (\(\gamma_x, k_m\))</td>
+      <td>\(d=3\), \(N=1200\)</td>
+      <td>\(2.4\times10^{-3}\) – \(8.29\times10^{-2}\)</td>
+      <td>\(4.7\times10^{-3}\) – \(8.20\times10^{-2}\)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Where the worst case sits, and why</h4>
+
+<p>
+In the two-parameter problem the best and median cases are in the <em>bimodal</em>
+regime, where the surrogate captures both modes well. The worst case is in the
+strictly <em>unimodal</em> regime, furthest from the ensemble mean behaviour.
+</p>
+
+<p>
+That ordering is the interesting part. For low \(\gamma_x\) the PDF can be bimodal for
+particular \(k_m\); as \(\gamma_x\) grows the second mode disappears, and the location of
+that transition depends on \(k_m\). Near the transition the map from parameters to
+solution is close to non-smooth, and a global polynomial basis converges slowly
+there — a well-documented limitation of global PCE. This is what forces \(d=3\) in the
+two-parameter case where \(d=2\) sufficed for one, and it is the argument for
+multi-element or adaptive stochastic Galerkin schemes with local refinement, or
+sparse PCE constructions, as the next step.
+</p>
+
+<h3>Computational cost</h3>
+
+<p>
+Wall-clock time in seconds for the intrusive PCE solver. Cost grows with both the
+grid (SBP discretisation) and the order (the number of retained coefficients grows
+combinatorially, enlarging the coupled Galerkin system).
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>Intrusive PCE solve time in seconds, one uncertain parameter.</caption>
+  <thead>
+    <tr><th>Grid size \(N\)</th><th>\(d=2\)</th><th>\(d=3\)</th><th>\(d=4\)</th><th>\(d=5\)</th><th>\(d=6\)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>76</td><td>0.1475</td><td>0.1489</td><td>0.1681</td><td>0.2433</td><td>0.3885</td></tr>
+    <tr><td>151</td><td>0.4660</td><td>0.8280</td><td>1.304</td><td>2.053</td><td>2.999</td></tr>
+    <tr><td>301</td><td>3.721</td><td>9.728</td><td>35.58</td><td>42.00</td><td>68.65</td></tr>
+    <tr><td>601</td><td>92.58</td><td>170.0</td><td>281.2</td><td>398.7</td><td>511.0</td></tr>
+    <tr><td>901</td><td>305.8</td><td>573.2</td><td>746.2</td><td>946.4</td><td>1340</td></tr>
+    <tr><td>1201</td><td>453.1</td><td>913.0</td><td>1574</td><td>2323</td><td>3429</td></tr>
+    <tr><td>1501</td><td>911.4</td><td>1814</td><td>3080</td><td>4694</td><td>8107</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Against Monte Carlo</h4>
+
+<p>
+The most expensive configuration tested (\(N=1501\), \(d=6\)) finishes in 8107 s, about
+2.25 h. Building the \(10^4\)-sample Monte Carlo reference with SELANSI needs roughly
+\(10^4\) deterministic runs at about 2 s each — on the order of 20 000 s, about 5.6 h.
+</p>
+
+<p>
+The wall-clock ratio is real but it is not the main argument. The main argument is
+what happens <em>after</em> the solve: with the coefficients in hand, statistics and new
+parameter realisations cost a polynomial evaluation. Any task that needs many
+repeated evaluations — optimisation, parameter inference, sensitivity analysis, or
+the closed-loop controller on the
+<a href="#control">control section</a> — pays the solve once
+and then queries for free. Monte Carlo pays again every time.
+</p>
+
+<div class="note">
+<strong>Caveat on the timings.</strong> These are wall-clock times from one machine and one
+implementation, not a tuned benchmark. Treat the scaling trends as the result and the
+absolute seconds as indicative.
+</div>
+
+  </div>
+</details>
+
+<details class="section" id="control">
+  <summary>
+    <span class="sec-title">Control law and robustness</span>
+    <span class="sec-blurb">Tracking from the ensemble mean, and PCE-aware vs nominal feedback.</span>
+  </summary>
+  <div class="section-body">
+
+<h3>Feedback from the ensemble mean</h3>
+
+<p>
+The controlled density is expanded in the orthonormal PCE basis
+\(\{\Phi_j(\gamma_x)\}_{j=0}^{L-1}\) of the uncertain degradation rate,
+\(p(t,x,\gamma_x)\approx\sum_{j=0}^{L-1} a_j(t,x)\,\Phi_j(\gamma_x)\). The feedback is
+driven by the <em>ensemble-mean</em> density, obtained from the zeroth PCE
+coefficient:
+</p>
+
+<p>
+$$ \mu(x,t) \;:=\; a_0(t,x) \;=\; \Ex_{\gamma_x}\!\big[p(t,x,\gamma_x)\big],
+   \qquad \int_{0}^{L_X}\mu(x,t)\dd x = 1 . $$
+</p>
+
+<p>
+The controller needs \(\mathbb{E}[p]\) at every step; with an intrusive PCE it is already sitting in the
+state vector.
+</p>
+
+<figure>
+  <img src="{{ '/assets/img/autoregulation.png' | relative_url }}"
+       alt="Schematic: a gene expresses protein P, P activates its own gene, and an external inducer I represses P">
+  <figcaption>
+    The one-dimensional plant. The gene expresses protein \(P\), which activates its own
+    transcription (positive autoregulation, \(H\lt 0\)); the external inducer \(I\) acts on
+    \(P\) as the single control input.
+  </figcaption>
+</figure>
+
+<h3>Tracking error, one dimension</h3>
+
+<h4>Mean tracking</h4>
+
+<p>With a target mean protein level \(\mu^\star\),</p>
+
+<p>
+$$ e_{\mathrm{mean}}(t) \;=\; \mu^\star-\int_{0}^{L_X} x\,\mu(x,t)\dd x . $$
+</p>
+
+<h4>Distribution tracking</h4>
+
+<p>
+Tracking a whole target shape \(p^\star(x)\) (normalised, \(\int p^\star\dd x = 1\)) is the
+harder problem, because a single scalar has to summarise a mismatch between two
+functions. The construction used here splits that into a <em>direction</em>, taken from
+the displacement of the means, and a <em>magnitude</em>, taken from a distribution
+distance:
+</p>
+
+<p>
+$$ e_{\mathrm{pdf}}(t) \;=\;
+   \sgn\!\left(\int_{0}^{L_X} x\,\big[p^\star(x)-\mu(x,t)\big]\dd x\right)
+   \cdot D\big(p^\star,\mu(\cdot,t)\big), $$
+</p>
+
+<p>with the distance \(D\) chosen from</p>
+
+<p>
+$$ D_{L^2}=\!\left(\int_0^{L_X}\!(p^\star-\mu)^2\dd x\right)^{\!1/2}\!,
+   \quad
+   D_{\TV}=\tfrac12\!\int_0^{L_X}\!\big|p^\star-\mu\big|\dd x,
+   \quad
+   D_{\mathrm{MSE}}=\int_0^{L_X}\!(p^\star-\mu)^2\dd x . $$
+</p>
+
+<div class="note">
+<strong>This is the signal that chatters.</strong> Every distance above is non-negative and
+floors at the residual shape mismatch, which a single global inducer cannot drive to
+zero. Near steady state the magnitude therefore stops decreasing while the sign
+function keeps flipping as the mean crosses the target — so \(e_{\mathrm{pdf}}\)
+oscillates rather than settling. That is why the deployment below is run in lock-step
+rather than by replaying a saved \(I(t)\).
+</div>
+
+<h3>Inducer control law</h3>
+
+<p>
+With \(e(t)\in\{e_{\mathrm{mean}}(t),\,e_{\mathrm{pdf}}(t)\}\):
+</p>
+
+<p>
+$$ u_{\mathrm{ctrl}}(t)=
+   \begin{cases}
+     u_0 + K_p\,e(t), & \text{(P)}\\[4pt]
+     u_0 + K_p\,e(t) + K_i\displaystyle\int_0^t e(\tau)\dd\tau . & \text{(PI)}
+   \end{cases} $$
+</p>
+
+<p>
+As implemented, the command is saturated to the admissible inducer range,
+\(u_{\mathrm{ctrl}}(t)\leftarrow \sat_{[u_{\min},\,u_{\max}]}\big(u_{\mathrm{ctrl}}(t)\big)\),
+with \(\sat_{[a,b]}(z)=\max\big(a,\min(b,z)\big)\).
+</p>
+
+<p>
+The integral action is what makes the steady-state result insensitive to the exact
+gains — a point that matters for the robustness comparison below, since both
+controllers must share gains for the comparison to isolate the feedback source.
+</p>
+
+<h3>Two-dimensional toggle switch</h3>
+
+<p>
+The same construction extends to a two-gene mutual-repression network — the classic
+toggle switch. Two genes each express a protein; each protein represses the other
+gene, which is what makes the system bistable. Here the state is a joint density
+\(p(t,x_1,x_2)\) over both protein levels, and there are two inducers instead of one.
+</p>
+
+<figure>
+  <img src="{{ '/assets/img/toggle_switch.png' | relative_url }}"
+       alt="Toggle switch schematic: gene 1 expresses P1, gene 2 expresses P2, each protein inhibits the other gene, and two inducers act on the proteins">
+  <figcaption>
+    The toggle switch. Each gene expresses its protein; \(P_1\) inhibits gene 2 and
+    \(P_2\) inhibits gene 1 (mutual repression). Two external inducers act on the
+    proteins as control inputs.
+  </figcaption>
+</figure>
+
+<h4>Mean joint density and its marginals</h4>
+
+<p>
+Let \(\mu(x_1,x_2,t):=a_0(t,x_1,x_2)=\Ex\big[p(t,x_1,x_2,\boldsymbol{\theta})\big]\) be the
+mean joint density — again the zeroth PCE coefficient. Its two marginals are
+</p>
+
+<p>
+$$ \mu_1(x_1,t)=\int \mu(x_1,x_2,t)\dd x_2,
+   \qquad
+   \mu_2(x_2,t)=\int \mu(x_1,x_2,t)\dd x_1 . $$
+</p>
+
+<p>Each marginal mean is normalised by its own marginal mass:</p>
+
+<p>
+$$ \bar{x}_1(t)=\frac{\displaystyle\int x_1\,\mu_1(x_1,t)\dd x_1}{\displaystyle\int \mu_1(x_1,t)\dd x_1},
+   \qquad
+   \bar{x}_2(t)=\frac{\displaystyle\int x_2\,\mu_2(x_2,t)\dd x_2}{\displaystyle\int \mu_2(x_2,t)\dd x_2}. $$
+</p>
+
+<p>
+The normalisation is not cosmetic: it keeps the error robust to the small numerical
+mass loss that the truncated domain and the weak boundary treatment introduce.
+</p>
+
+<h4>Per-channel error and the decentralized law</h4>
+
+<p>
+With targets \(\mu_1^\star,\mu_2^\star\) and actuation sign \(s_k\in\{+1,-1\}\) (\(+1\)
+activating inducer, \(-1\) repressing):
+</p>
+
+<p>
+$$ e_k(t)=s_k\big(\mu_k^\star-\bar{x}_k(t)\big),\qquad k=1,2 . $$
+</p>
+
+<p>
+Two inducers \(I=[\,I_1,\,I_2\,]^\top\), one independent loop per protein — no
+cross-terms, no joint design:
+</p>
+
+<p>
+$$ I_k(t)=\sat_{[u_{\min,k},\,u_{\max,k}]}\big(v_k(t)\big),\qquad
+   v_k(t)=
+   \begin{cases}
+     u_{0,k}+K_{p,k}\,e_k(t), & \text{(P)}\\[4pt]
+     u_{0,k}+K_{p,k}\,e_k(t)+K_{i,k}\displaystyle\int_0^t e_k(\tau)\dd\tau . & \text{(PI)}
+   \end{cases} $$
+</p>
+
+<h4>Anti-windup</h4>
+
+<p>
+The integral term uses conditional-integration anti-windup: on channel \(k\) the
+integrator is frozen — not updated — whenever the unsaturated command exceeds a limit
+while the error still drives it further into saturation, that is when
+</p>
+
+<p>
+$$ \big(v_k \gt u_{\max,k}\ \wedge\ e_k \gt 0\big)
+   \quad\text{or}\quad
+   \big(v_k \lt u_{\min,k}\ \wedge\ e_k \lt 0\big). $$
+</p>
+
+<p>
+Without this, a channel pinned at a saturation limit keeps accumulating error it
+cannot act on, and the loop overshoots badly on the way back. It matters more here
+than in the one-dimensional case, because the toggle switch's bistability means one
+channel can sit hard against a limit for a long stretch while the other moves.
+</p>
+
+<div class="note">
+<strong>Reading the inducer arrows.</strong> In the schematic each inducer is drawn
+acting on the protein with the <em>other</em> index — \(I_2\) on \(P_1\), \(I_1\) on
+\(P_2\) — but the net effect of \(I_k\) is on channel \(k\). The inducer acts by
+sequestration, entering \(c_k\) as an apparent shift of the Hill threshold rather than
+as a removal term for the opposite protein: \(I_1\) appears only in \(c_1\), never in
+\(c_2\). Raising \(I_1\) raises \(K_{12}\), lowers the repression fraction and so raises
+\(x_1\). Hence \(\partial\bar{x}_k/\partial I_k \gt 0\) and \(s_k = +1\) for both
+channels, with \(\partial\bar{x}_k/\partial I_j \lt 0\) off-diagonal.
+</div>
+
+<div class="note">
+<strong>Results not on this page yet.</strong> Everything below is the one-dimensional case.
+The two-dimensional solvers exist, but their controlled results have not been added here.
+</div>
+
+<h3>Does the ensemble mean help? The experiment</h3>
+
+<p>
+Is a PCE-aware controller more robust than a nominal-model-feedback controller for
+PDF-shape tracking, under \(\gamma_x \sim \mathcal{U}[\rho_{\min}, \rho_{\max}]\)?
+</p>
+
+<p>
+Both controllers share the <em>same</em> structure and the same gains. They differ in
+one thing only — what they look at:
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>The only difference between the two controllers is the feedback source.</caption>
+  <thead>
+    <tr><th>Controller</th><th>Feedback signal</th><th>Blind to uncertainty?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>PCE-aware</td><td>PCE ensemble mean \(a_0(x) = \mathbb{E}[p]\)</td><td>No</td></tr>
+    <tr><td>Nominal</td><td>Deterministic model at \(\gamma_x = c_1\) (midpoint)</td><td>Yes</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+Each controller produces an inducer trajectory \(I(t)\), which is then deployed on the
+<em>true uncertain ensemble</em>. Per-realisation terminal PDFs \(p(x;\gamma_x)\) are
+reconstructed from the ensemble PCE coefficients over sampled \(\gamma_x\) and compared
+to the target \(p^*(x)\).
+</p>
+
+<div class="note">
+<strong>Deployment is live, not replayed.</strong> As noted above, \(e_{\mathrm{pdf}}\)
+chatters near steady state: the sign flips every step while the magnitude floors at the
+residual shape mismatch. Replaying a coarsely sampled chattering trajectory aliases it —
+matching required roughly 9000 samples in testing. Instead the nominal feedback model is
+integrated in lock-step with the ensemble and the same \(I\) is applied to both.
+</div>
+
+<h3>Headline result at ±20%</h3>
+
+<div class="tablewrap">
+<table>
+  <caption>
+    Terminal metrics at ±20% uncertainty, target \(x^*=100\). Bold marks the better
+    value. Hellinger and total variation are distances between the reconstructed and
+    target PDFs.
+  </caption>
+  <thead>
+    <tr><th>Metric</th><th>PCE-aware</th><th>Nominal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Ensemble-mean location \(\mathbb{E}[\langle x\rangle]\)</td><td class="win">99.958</td><td>100.634</td></tr>
+    <tr><td>Location bias \(|\mathbb{E}[\langle x\rangle]-x^*|\)</td><td class="win">0.042</td><td>0.634</td></tr>
+    <tr><td>Worst-case \(|\langle x\rangle - x^*|\)</td><td class="win">17.55</td><td>18.24</td></tr>
+    <tr><td>Worst-case Hellinger</td><td class="win">0.2116</td><td>0.2158</td></tr>
+    <tr><td>Worst-case total variation</td><td>0.2493</td><td class="win">0.2430</td></tr>
+    <tr><td>Ensemble-mean Hellinger</td><td>0.1277</td><td>0.1272</td></tr>
+    <tr><td>Ensemble-mean total variation</td><td>0.1410</td><td class="win">0.1388</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+The bias is reduced by roughly a factor of 15. The aggregate ensemble-mean distances
+are effectively tied — and on total variation the nominal controller is marginally
+ahead. That is not noise, and the explanation is in the limitations below.
+</p>
+
+<h3>The margin grows with uncertainty</h3>
+
+<p>
+Nominal bias grows roughly quadratically, because the Jensen gap scales with
+\(\mathrm{Var}(\gamma_x)\), which scales with the square of the spread. PCE bias stays
+near zero across the whole range.
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>
+    Mode B (inducer-only actuator). Uncertainty sweep, verified NumPy reference at
+    \(N=201\). "worst" is \(\max\) over realisations of \(|\langle x\rangle - x^*|\).
+  </caption>
+  <thead>
+    <tr><th>± uncertainty</th><th>bias PCE</th><th>bias nominal</th><th>worst PCE</th><th>worst nominal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>10%</td><td class="win">0.051</td><td>0.128</td><td class="win">8.40</td><td>8.58</td></tr>
+    <tr><td>20%</td><td class="win">0.052</td><td>0.614</td><td class="win">17.57</td><td>18.24</td></tr>
+    <tr><td>30%</td><td class="win">0.069</td><td>1.416</td><td class="win">27.45</td><td>28.91</td></tr>
+    <tr><td>40%</td><td class="win">0.052</td><td>2.538</td><td class="win">38.02</td><td>40.40</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure>
+  <img src="{{ '/assets/img/robustness_summary.png' | relative_url }}"
+       alt="Robustness summary: PCE-aware versus nominal controller across uncertainty levels">
+  <figcaption>Mode B robustness summary across the uncertainty sweep.</figcaption>
+</figure>
+
+<figure>
+  <img src="{{ '/assets/img/jensen_summary.png' | relative_url }}"
+       alt="Jensen gap check: nominal-model bias against variance of the uncertain parameter">
+  <figcaption>
+    The Jensen-gap check: the nominal controller's bias tracks \(\mathrm{Var}(\gamma_x)\),
+    which is the mechanism behind the quadratic growth in the table above.
+  </figcaption>
+</figure>
+
+<h3>Two honest limitations</h3>
+
+<h4>1. One scalar actuator cannot narrow the ensemble</h4>
+
+<p>
+The ensemble mean of a set of distributions is a mixture, and a mixture is always
+wider than any single member. A single global inducer shifts the whole family; it
+cannot compress it. So the PCE controller's advantage shows up in <em>bias</em> and
+<em>worst case</em>, not in the aggregate ensemble-mean PDF distance — which is
+dominated by that irreducible width floor and is therefore roughly tied at ±20%.
+This is a limitation of one scalar actuator, not of the method.
+</p>
+
+<h4>2. The autoregulation actuator (Mode A) is poorly conditioned</h4>
+
+<p>
+Mode A modulates the protein's own Hill self-regulation through \(K_{\text{eff}}(I)\)
+rather than acting as a pure inducer. Two problems appear.
+</p>
+
+<p>
+<strong>Authority is regime-dependent.</strong> With the original parameters
+(\(K=45\), \(H=-4\)) the inducer barely moves the distribution: the mean is confined to
+roughly \([136,139]\), while \(\gamma_x\) alone swings it from 125 to 153. The Hill term
+is saturated (\(c\approx1\)) across the entire inducer range, so the control problem is
+nearly degenerate. Raising \(K\) with the inducer <em>inverts</em> the plant gain
+(\(I\uparrow \Rightarrow\) mean \(\downarrow\)), fighting the controller's sign convention. To
+recover authority with the correct sign the threshold has to sweep the protein range —
+\(K=150\), \(H=-4\) gives a reachable mean over roughly \([38,139]\).
+</p>
+
+<p>
+<strong>Even with authority it is stiff.</strong> The mean is hypersensitive to \(\gamma_x\) at
+the operating point, so the deployed ensemble is bimodal and very wide, the closed
+loop does not fully settle (\(\mathbb{E}[x]\) drifts to about 102 rather than 100), and
+one global inducer cannot shape it.
+</p>
+
+<div class="tablewrap">
+<table>
+  <caption>Mode A (autoregulation actuator), retuned to \(K=150\), \(H=-4\).</caption>
+  <thead>
+    <tr><th>± uncertainty</th><th>bias PCE</th><th>bias nominal</th><th>worst PCE</th><th>worst nominal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>10%</td><td class="win">0.780</td><td>0.941</td><td class="win">21.97</td><td>22.11</td></tr>
+    <tr><td>20%</td><td class="win">1.265</td><td>1.731</td><td class="win">40.48</td><td>40.77</td></tr>
+    <tr><td>30%</td><td class="win">2.139</td><td>2.778</td><td class="win">53.76</td><td>54.02</td></tr>
+    <tr><td>40%</td><td class="win">3.530</td><td>4.103</td><td class="win">62.40</td><td>62.61</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure>
+  <img src="{{ '/assets/img/robustness_modeA.png' | relative_url }}"
+       alt="Mode A robustness: wide, bimodal deployed ensemble with a small margin between controllers">
+  <figcaption>Mode A. The direction is the same; the margin is much smaller and neither controller tracks cleanly.</figcaption>
+</figure>
+
+<h3>Bottom line</h3>
+
+<p>
+The PCE-aware controller beats the nominal one in both modes — lower bias at every
+uncertainty level, with the gap widening as uncertainty grows. But Mode B
+(inducer-only) is where the framework is clean: there the PCE controller drives
+ensemble bias to nearly zero while the nominal bias grows quadratically. Mode A is a
+poorly-conditioned actuator with almost no authority at the original parameters and
+a large irreducible spread even when retuned, so the robustness margin is small.
+That is a property of the Mode-A actuator, not of the PCE method.
+</p>
+
+<div class="note">
+<strong>What these numbers depend on.</strong> Absolute values depend on the target \(p^*\),
+the gains, and the grid. The <em>relative</em> PCE-vs-nominal comparison is the result.
+Gains were tuned for convergent tracking; the PI integral action makes steady-state
+tracking insensitive to their exact values.
+</div>
+
+  </div>
+</details>
+
+<h2 class="contact-h">Contact</h2>
 <p>
 {{ site.author.name }}{% if site.author.affiliation %}, {{ site.author.affiliation }}{% endif %}.
 {% if site.author.email %}<br>{{ site.author.email }}{% endif %}

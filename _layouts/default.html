@@ -30,11 +30,6 @@
 <header class="site-header">
   <div class="wrap">
     <a class="brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
-    <nav>
-      <a href="{{ '/PIDE-UQ/' | relative_url }}">Overview</a>
-      <a href="{{ '/PIDE-UQ/convergence/' | relative_url }}">Convergence</a>
-      <a href="{{ '/PIDE-UQ/control/' | relative_url }}">Control</a>
-    </nav>
   </div>
 </header>
 
@@ -52,6 +47,30 @@
     <p class="fine">Supplementary material for the conference poster. Last built {{ site.time | date: "%-d %B %Y" }}.</p>
   </div>
 </footer>
+
+<script>
+  // Open the targeted section when the page is opened at #model / #convergence / #control.
+  (function () {
+    function openTarget() {
+      var id = location.hash.slice(1);
+      if (!id) return;
+      var el = document.getElementById(id);
+      if (el && el.tagName.toLowerCase() === 'details') {
+        el.open = true;
+        el.scrollIntoView({ block: 'start' });
+      }
+    }
+    document.addEventListener('DOMContentLoaded', openTarget);
+    window.addEventListener('hashchange', openTarget);
+    // In-page links to a collapsed section should expand it.
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href^="#"]');
+      if (!a) return;
+      var el = document.getElementById(a.getAttribute('href').slice(1));
+      if (el && el.tagName.toLowerCase() === 'details') el.open = true;
+    });
+  })();
+</script>
 
 </body>
 </html>

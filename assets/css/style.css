@@ -81,3 +81,41 @@ mjx-container[display="true"]{overflow-x:auto; overflow-y:hidden; max-width:100%
 /* footer */
 .site-footer{margin-top:4rem; border-top:1px solid var(--line); padding:1.5rem 0 3rem; font-size:.9rem; color:var(--muted)}
 .site-footer p{margin:.25rem 0}
+
+/* ---- collapsible sections ---------------------------------------------- */
+.section{
+  border:1px solid var(--line); border-radius:8px;
+  margin:1.25rem 0; background:var(--bg);
+}
+.section[open]{border-color:var(--accent)}
+.section summary{
+  cursor:pointer; padding:1rem 1.1rem 1rem 2.6rem; position:relative;
+  list-style:none; border-radius:8px; user-select:none;
+}
+.section summary::-webkit-details-marker{display:none}
+.section summary:hover{background:var(--accent-soft)}
+.section summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+/* chevron */
+.section summary::before{
+  content:""; position:absolute; left:1.1rem; top:1.45rem;
+  width:.5rem; height:.5rem; border-right:2px solid var(--accent);
+  border-bottom:2px solid var(--accent); transform:rotate(-45deg);
+  transition:transform .15s ease;
+}
+.section[open] summary::before{transform:rotate(45deg); top:1.3rem}
+.sec-title{display:block; font-weight:650; font-size:1.1rem; letter-spacing:-.01em}
+.sec-blurb{display:block; color:var(--muted); font-size:.9rem; margin-top:.15rem}
+.section[open] summary{border-bottom:1px solid var(--line); border-radius:8px 8px 0 0}
+.section-body{padding:.25rem 1.1rem 1.4rem}
+/* inside a section the former page-level h2 becomes h3 */
+.section-body h3{
+  font-size:1.12rem; margin:2rem 0 .7rem; padding-top:.4rem;
+  border-top:1px solid var(--line); letter-spacing:-.015em;
+}
+.section-body > h3:first-child{border-top:none; margin-top:1rem; padding-top:0}
+.section-body h4{font-size:1rem; margin:1.6rem 0 .5rem; font-weight:650}
+.contact-h{font-size:1.15rem}
+@media (max-width:34rem){
+  .section summary{padding-left:2.3rem}
+  .section-body{padding-left:.85rem; padding-right:.85rem}
+}
