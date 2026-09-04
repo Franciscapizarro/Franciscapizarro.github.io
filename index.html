@@ -32,7 +32,7 @@ four genes.
 <details class="section" id="model" open>
   <summary>
     <span class="sec-title">The model and how uncertainty is propagated</span>
-    <span class="sec-blurb">PIDE for n interacting genes, the PCE basis, and the Galerkin projection.</span>
+    <span class="sec-blurb">PIDE for \(n\) interacting genes, the PCE basis, and the Galerkin projection.</span>
   </summary>
   <div class="section-body">
 
@@ -677,7 +677,7 @@ near zero across the whole range.
 <div class="tablewrap">
 <table>
   <caption>
-    Mode B (inducer-only actuator). Uncertainty sweep, verified NumPy reference at
+    Inducer-only actuator. Uncertainty sweep, verified NumPy reference at
     \(N=201\). "worst" is \(\max\) over realisations of \(|\langle x\rangle - x^*|\).
   </caption>
   <thead>
@@ -695,7 +695,7 @@ near zero across the whole range.
 <figure>
   <img src="{{ '/assets/img/robustness_summary.png' | relative_url }}"
        alt="Robustness summary: PCE-aware versus nominal controller across uncertainty levels">
-  <figcaption>Mode B robustness summary across the uncertainty sweep.</figcaption>
+  <figcaption>Robustness summary across the uncertainty sweep.</figcaption>
 </figure>
 
 <figure>
@@ -707,9 +707,7 @@ near zero across the whole range.
   </figcaption>
 </figure>
 
-<h3>Two honest limitations</h3>
-
-<h4>1. One scalar actuator cannot narrow the ensemble</h4>
+<h3>An honest limitation: one scalar actuator cannot narrow the ensemble</h3>
 
 <p>
 The ensemble mean of a set of distributions is a mixture, and a mixture is always
@@ -720,62 +718,13 @@ dominated by that irreducible width floor and is therefore roughly tied at ±20%
 This is a limitation of one scalar actuator, not of the method.
 </p>
 
-<h4>2. The autoregulation actuator (Mode A) is poorly conditioned</h4>
-
-<p>
-Mode A modulates the protein's own Hill self-regulation through \(K_{\text{eff}}(I)\)
-rather than acting as a pure inducer. Two problems appear.
-</p>
-
-<p>
-<strong>Authority is regime-dependent.</strong> With the original parameters
-(\(K=45\), \(H=-4\)) the inducer barely moves the distribution: the mean is confined to
-roughly \([136,139]\), while \(\gamma_x\) alone swings it from 125 to 153. The Hill term
-is saturated (\(c\approx1\)) across the entire inducer range, so the control problem is
-nearly degenerate. Raising \(K\) with the inducer <em>inverts</em> the plant gain
-(\(I\uparrow \Rightarrow\) mean \(\downarrow\)), fighting the controller's sign convention. To
-recover authority with the correct sign the threshold has to sweep the protein range —
-\(K=150\), \(H=-4\) gives a reachable mean over roughly \([38,139]\).
-</p>
-
-<p>
-<strong>Even with authority it is stiff.</strong> The mean is hypersensitive to \(\gamma_x\) at
-the operating point, so the deployed ensemble is bimodal and very wide, the closed
-loop does not fully settle (\(\mathbb{E}[x]\) drifts to about 102 rather than 100), and
-one global inducer cannot shape it.
-</p>
-
-<div class="tablewrap">
-<table>
-  <caption>Mode A (autoregulation actuator), retuned to \(K=150\), \(H=-4\).</caption>
-  <thead>
-    <tr><th>± uncertainty</th><th>bias PCE</th><th>bias nominal</th><th>worst PCE</th><th>worst nominal</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>10%</td><td class="win">0.780</td><td>0.941</td><td class="win">21.97</td><td>22.11</td></tr>
-    <tr><td>20%</td><td class="win">1.265</td><td>1.731</td><td class="win">40.48</td><td>40.77</td></tr>
-    <tr><td>30%</td><td class="win">2.139</td><td>2.778</td><td class="win">53.76</td><td>54.02</td></tr>
-    <tr><td>40%</td><td class="win">3.530</td><td>4.103</td><td class="win">62.40</td><td>62.61</td></tr>
-  </tbody>
-</table>
-</div>
-
-<figure>
-  <img src="{{ '/assets/img/robustness_modeA.png' | relative_url }}"
-       alt="Mode A robustness: wide, bimodal deployed ensemble with a small margin between controllers">
-  <figcaption>Mode A. The direction is the same; the margin is much smaller and neither controller tracks cleanly.</figcaption>
-</figure>
-
 <h3>Bottom line</h3>
 
 <p>
-The PCE-aware controller beats the nominal one in both modes — lower bias at every
-uncertainty level, with the gap widening as uncertainty grows. But Mode B
-(inducer-only) is where the framework is clean: there the PCE controller drives
-ensemble bias to nearly zero while the nominal bias grows quadratically. Mode A is a
-poorly-conditioned actuator with almost no authority at the original parameters and
-a large irreducible spread even when retuned, so the robustness margin is small.
-That is a property of the Mode-A actuator, not of the PCE method.
+The PCE-aware controller has lower bias than the nominal one at every uncertainty
+level, and the gap widens as uncertainty grows. With the inducer-only actuator the PCE
+controller drives ensemble bias to nearly zero while the nominal bias grows
+quadratically.
 </p>
 
 <div class="note">
